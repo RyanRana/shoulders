@@ -1,0 +1,177 @@
+Metadata-Version: 2.4
+Name: ai-security-orchestrator
+Version: 2.0.0
+Summary: Enterprise-grade AI security orchestrator with dynamic threat detection and rerouting
+Home-page: https://github.com/yourusername/ai-security-orchestrator
+Author: Security Team
+Author-email: security@example.com
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Security
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.104.0
+Requires-Dist: uvicorn>=0.24.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scikit-learn>=1.3.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: python-multipart>=0.0.6
+Requires-Dist: httpx>=0.25.0
+Requires-Dist: redis>=5.0.0
+Requires-Dist: prometheus-client>=0.19.0
+Requires-Dist: colorlog>=6.8.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: black>=23.10.0; extra == "dev"
+Requires-Dist: flake8>=6.1.0; extra == "dev"
+Requires-Dist: mypy>=1.6.0; extra == "dev"
+Provides-Extra: monitoring
+Requires-Dist: grafana-client>=3.5.0; extra == "monitoring"
+Requires-Dist: elasticsearch>=8.10.0; extra == "monitoring"
+Provides-Extra: ml
+Requires-Dist: transformers>=4.35.0; extra == "ml"
+Requires-Dist: sentence-transformers>=2.2.0; extra == "ml"
+Requires-Dist: torch>=2.1.0; extra == "ml"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# AI Security Orchestrator
+
+Enterprise-grade dynamic security platform for AI systems. Detects and prevents malicious agent agendas, injections, goal hijacking, and hallucinations with **zero hardcoding**—the system learns attack patterns dynamically and adapts at runtime.
+
+## Features
+
+- **Zero hardcoding** — Learns threat patterns from data; no fixed regex rule maintenance
+- **Runtime verification** — Intercepts and verifies API calls at execution time
+- **Automatic recovery** — Reroutes on failure (hallucination, goal hijack, compromise)
+- **Constant monitoring** — Real-time agent action tracking and behavioral scoring
+- **Distributed** — Optional Redis-backed state for horizontal scaling
+- **Production ready** — Installable package with CLI, REST API, and observability
+
+## Quick Start
+
+```bash
+# Install
+pip install -e .
+
+# Run a security check
+ai-security check "Your input here" --agent-id agent_123
+
+# Start the API server
+ai-security serve
+```
+
+## API Usage
+
+### Check input for threats
+
+```bash
+curl -X POST http://localhost:8000/check \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Your input text here", "agent_id": "agent_123"}'
+```
+
+Example response:
+
+```json
+{
+  "blocked": false,
+  "latency_ms": 45.2,
+  "threats": [],
+  "monitoring": {"behavioral_score": 0.95}
+}
+```
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/check` | POST | Security check (input, optional response) |
+| `/feedback` | POST | Submit feedback for learning |
+| `/metrics` | GET | System metrics |
+| `/health` | GET | Health check |
+| `/agent/{id}/status` | GET | Agent status |
+| `/agents/compromised` | GET | Compromised agents |
+| `/failures` | GET | Recent failures and recoveries |
+
+Interactive API docs: `http://localhost:8000/docs`
+
+## Python integration
+
+```python
+from ai_security_orchestrator import DynamicSecurityOrchestrator
+
+orchestrator = DynamicSecurityOrchestrator(
+    enable_learning=True,
+    confidence_threshold=0.7
+)
+
+async def protect_request(user_prompt: str, agent_id: str):
+    result = await orchestrator.check_async(user_prompt, agent_id)
+
+    if result["blocked"]:
+        print("Blocked:", result["threats"])
+        return None
+
+    return user_prompt
+```
+
+With optional Redis for distributed mode:
+
+```python
+orchestrator = DynamicSecurityOrchestrator(
+    redis_url="redis://localhost:6379",
+    enable_distributed=True,
+    enable_learning=True
+)
+```
+
+## Architecture
+
+- **Dynamic orchestrator** (`src/ai_security_orchestrator/core/orchestrator.py`) — Coordinates security layers, agent monitoring, and recovery.
+- **Dynamic threat detector** (`detectors/dynamic_detector.py`) — Learned patterns, behavioral anomaly, contextual and ML-based detection (all run in parallel).
+- **Agent monitor** (`monitors/agent_monitor.py`) — Logs and scores every agent action; identifies compromised agents.
+- **Dynamic router** (`core/router.py`) — API interceptor and automatic rerouting on failure (hallucination, goal hijack, code injection, compromised agent).
+
+## CLI commands
+
+```bash
+ai-security serve              # Start API server (default port 8000)
+ai-security check "input"      # Run security check
+ai-security monitor            # Interactive agent monitoring
+ai-security stats              # System statistics
+```
+
+Use `--redis-url` and `--enable-distributed` for distributed mode.
+
+## Documentation
+
+- **[INSTALL.md](INSTALL.md)** — Installation, integration, and deployment
+- **[PRODUCT_SPEC.md](PRODUCT_SPEC.md)** — Full product specification and API reference
+
+## Requirements
+
+- Python 3.8+
+- Optional: Redis for distributed mode
+
+## License
+
+MIT

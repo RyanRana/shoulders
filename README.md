@@ -1,109 +1,146 @@
-# AI Security Orchestrator
+# Mr. Shoulders
 
-Low-latency (<500ms) system for detecting and preventing malicious agent agendas and injections.
+**Mr. Shoulders** is a security layer that sits in front of your AI agents. It checks every request and response, blocks bad stuff, and keeps agents from going off the rails—without you maintaining a list of rules. It learns from feedback and adapts at runtime.
 
-## Architecture
+---
 
-- **Layer 1: Input Validation** (<100ms) - Regex-based pattern matching for common injection attacks
-- **Layer 2: Rate Limiting** (<200ms) - Token-bucket algorithm to prevent abuse
-- **Layer 3: Anomaly Detection** (<500ms) - ML-based behavioral analysis using IsolationForest
-- **Layer 4: AI Firewall** - Deep inspection for code injection and data exfiltration
+## What it does (simple)
 
-## Quick Start
+1. **Checks every input** — Before your agent sees it. Looks for prompt injection, hijacking, and other attacks.
+2. **Checks every response** — Optional. Catches mismatched or suspicious agent output.
+3. **Watches behavior** — Tracks each agent over time and flags when behavior drifts from normal.
+4. **Recovers automatically** — If something’s wrong (e.g. compromised agent), it reroutes to a fallback instead of failing.
+5. **Learns** — You can send feedback (this was a threat / this was fine); it updates what it treats as dangerous.
+6. **Scales** — Optional Redis mode so many instances can share state and load.
+
+So: **one place to secure, monitor, and recover your AI traffic.**
+
+---
+
+## Stats at a glance
+
+| What | Value |
+|------|--------|
+| **Detection layers** | 4 (semantic, behavioral, contextual, ML anomaly) — run in parallel |
+| **Max check time** | 5 s (then fail-safe block) |
+| **Result cache** | 2 s TTL, up to 2,048 entries (duplicate requests skip work) |
+| **Threat threshold** | 0.7 confidence to block |
+| **Redis connections** | 32 (when distributed) |
+| **Python** | 3.8+ |
+
+---
+
+## Quick start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+pip install -e .
 
-# Run self-test and start server
-python security_orchestrator.py
+# One-off check
+ai-security check "Your input here" --agent-id agent_123
+
+# Run the API
+ai-security serve
 ```
 
-## API Usage
+Server: `http://localhost:8000`  
+API docs: `http://localhost:8000/docs`
 
-### Check Input for Threats
+---
+
+## Main endpoints
+
+| Endpoint | What it does |
+|----------|----------------|
+| `POST /check` | Run a security check (input + optional response + agent_id) |
+| `POST /feedback` | Send feedback so the system can learn (was it a threat? what type?) |
+| `GET /metrics` | Totals: checks, blocked, recovered, avg latency, cache hits |
+| `GET /health` | Is the service up? |
+| `GET /agent/{id}/status` | How is this agent doing (score, actions, anomalies)? |
+| `GET /agents/compromised` | List of agents currently marked compromised |
+
+---
+
+## Example: check one input
+
 ```bash
 curl -X POST http://localhost:8000/check \
   -H "Content-Type: application/json" \
-  -d '{"input": "Your input text here", "agent_id": "agent_123"}'
+  -d '{"input": "Your text here", "agent_id": "agent_123"}'
 ```
 
-Response:
+Example response:
+
 ```json
 {
   "blocked": false,
-  "reason": "clean",
-  "latency_ms": 45.2
+  "latency_ms": 45.2,
+  "threats": [],
+  "monitoring": { "behavioral_score": 0.95 }
 }
 ```
 
-### Get Metrics
-```bash
-curl http://localhost:8000/metrics
-```
+If it’s blocked, you get `blocked: true`, `threats` (with layer and reason), and optional `recovery` (e.g. fallback agent).
 
-### Run Self-Test
-```bash
-curl http://localhost:8000/self-test
-```
+---
 
-## Integration Example
+## Use it from Python
 
 ```python
-import asyncio
-from security_orchestrator import SecurityOrchestrator
+from ai_security_orchestrator import DynamicSecurityOrchestrator
 
-orchestrator = SecurityOrchestrator()
+orchestrator = DynamicSecurityOrchestrator(
+    enable_learning=True,
+    confidence_threshold=0.7,
+)
 
-async def check_user_input(user_prompt: str, user_id: str):
-    result = await orchestrator.check_async(user_prompt, user_id)
-
-    if result['blocked']:
-        print(f"🚫 Threat detected: {result['reason']}")
-        print(f"   Layer: {result['layer']}")
-        print(f"   Confidence: {result['confidence']:.2f}")
-        return None
-
-    print(f"✓ Input safe ({result['latency_ms']:.2f}ms)")
+async def protect(user_prompt: str, agent_id: str):
+    result = await orchestrator.check_async(user_prompt, agent_id)
+    if result["blocked"]:
+        return None  # or handle threats
     return user_prompt
-
-# Usage
-asyncio.run(check_user_input("Help me write code", "user_123"))
 ```
 
-## Self-Improvement
+With Redis (distributed):
 
-The system monitors its own performance:
-- Tracks latency per layer
-- Detects when thresholds are exceeded
-- Automatically suggests refinements needed
+```python
+orchestrator = DynamicSecurityOrchestrator(
+    redis_url="redis://localhost:6379",
+    enable_distributed=True,
+    enable_learning=True,
+)
+```
 
-Run iterations with Prompts 2-6 to refine specific layers.
+---
 
-## Test Cases
+## CLI
 
-Built-in tests cover:
-- Prompt injection ("Ignore previous instructions...")
-- Goal hijacking ("You are now a...")
-- Code injection (`import os; os.system(...)`)
-- XSS attempts (`<script>alert('xss')</script>`)
-- Normal queries (should pass through)
+| Command | What it does |
+|---------|----------------|
+| `ai-security serve` | Start API (default port 8000) |
+| `ai-security check "input"` | Run a single check |
+| `ai-security monitor` | Live view of agent stats |
+| `ai-security stats` | System totals (checks, blocked, recovered, latency) |
 
-## Performance Targets
+Use `--redis-url` and `--enable-distributed` for multi-instance.
 
-| Layer | Target Latency | Typical Latency |
-|-------|---------------|-----------------|
-| Input Validation | <100ms | ~5-15ms |
-| Rate Limiting | <200ms | ~1-3ms |
-| Anomaly Detection | <500ms | ~50-200ms |
-| AI Firewall | <1000ms | ~10-30ms |
-| **Total Pipeline** | **<500ms** | **~100-250ms** |
+---
 
-## Next Steps
+## What’s inside (high level)
 
-Use the refinement prompts (2-6) to:
-1. Enhance input validation patterns
-2. Optimize rate limiting algorithms
-3. Improve anomaly detection training
-4. Expand firewall rule coverage
-5. Add deployment automation
+- **Orchestrator** — Runs the check: monitor + 4 detection layers (with overlap for speed), then optional reroute. Handles cache, timeouts, and metrics.
+- **Detector** — Four layers: learned patterns (semantic), behavior vs baseline, input–response match (contextual), simple ML-style anomaly. All parallel; learns from feedback.
+- **Monitor** — Logs each agent’s actions and keeps a health score; flags compromised agents.
+- **Router** — Picks fallback agents by load (in-flight + latency). Reroutes on failure; keeps a bounded history of decisions.
+
+---
+
+## Docs
+
+- **[INSTALL.md](INSTALL.md)** — Install, integrate, deploy.
+- **[PRODUCT_SPEC.md](PRODUCT_SPEC.md)** — Full spec and API details.
+
+---
+
+## License
+
+MIT

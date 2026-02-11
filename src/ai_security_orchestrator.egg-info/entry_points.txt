@@ -1,0 +1,2 @@
+[console_scripts]
+ai-security = ai_security_orchestrator.cli:main
