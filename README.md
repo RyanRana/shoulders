@@ -1,6 +1,6 @@
-# Mr. Shoulders
+# Shoulders
 
-**Mr. Shoulders** is a security layer that sits in front of your AI agents. It checks every request and response, blocks bad stuff, and keeps agents from going off the rails—without you maintaining a list of rules. It learns from feedback and adapts at runtime.
+**Shoulders** is a security layer that sits in front of your AI agents. It checks every request and response, blocks bad stuff, and keeps agents from going off the rails—without you maintaining a list of rules. It learns from feedback and adapts at runtime.
 
 ---
 ## Benchmarks
